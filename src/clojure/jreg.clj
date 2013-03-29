@@ -10,6 +10,8 @@
                                  Publisher
                                  Subscriber)))
 
+;; Core
+
 (defn dispose [^Disposable disposable] (.dispose disposable))
 
 (defn ->callback ^org.jetlang.core.Callback [f]
@@ -17,31 +19,6 @@
 
 (defn ->filter ^org.jetlang.core.Filter [pred]
   (reify Filter (passes [_ message] (boolean (pred message)))))
-
-(defn ->channel-subscriber
-  (^org.jetlang.channels.Subscribable
-   [executor f]
-   (ChannelSubscription. executor (->callback f)))
-  (^org.jetlang.channels.Subscribable
-   [executor f filter-pred]
-   (ChannelSubscription. executor (->callback f) (->filter filter-pred))))
-
-(defn ->last-subscriber
-  (^org.jetlang.channels.Subscribable
-   [flush-interval time-unit executor f]
-   (LastSubscriber. executor (->callback f) flush-interval time-unit))
-  (^org.jetlang.channels.Subscribable
-   [flush-interval-millis executor f]
-   (->last-subscriber flush-interval-millis TimeUnit/MILLISECONDS executor f)))
-
-(defn subscribe
-  (^org.jetlang.core.Disposable [^Subscriber channel executor f]
-                                (.subscribe channel executor (->callback f)))
-  (^org.jetlang.core.Disposable [^Subscriber channel subscribable]
-                                (.subscribe channel subscribable)))
-
-(defn publish [^Publisher channel message]
-  (.publish channel message))
 
 (defn execute [^Executor executor runnable]
   (.execute executor runnable))
@@ -65,3 +42,30 @@
   (^Disposable [scheduler command initial-delay-millis delay-millis]
                (schedule-with-fixed-delay scheduler command initial-delay-millis delay-millis
                  TimeUnit/MILLISECONDS)))
+
+;; Channels
+
+(defn publish [^Publisher channel message]
+  (.publish channel message))
+
+(defn subscribe
+  (^org.jetlang.core.Disposable [^Subscriber channel executor f]
+                                (.subscribe channel executor (->callback f)))
+  (^org.jetlang.core.Disposable [^Subscriber channel subscribable]
+                                (.subscribe channel subscribable)))
+
+(defn ->channel-subscriber
+  (^org.jetlang.channels.Subscribable
+   [executor f]
+   (ChannelSubscription. executor (->callback f)))
+  (^org.jetlang.channels.Subscribable
+   [executor f filter-pred]
+   (ChannelSubscription. executor (->callback f) (->filter filter-pred))))
+
+(defn ->last-subscriber
+  (^org.jetlang.channels.Subscribable
+   [flush-interval time-unit executor f]
+   (LastSubscriber. executor (->callback f) flush-interval time-unit))
+  (^org.jetlang.channels.Subscribable
+   [flush-interval-millis executor f]
+   (->last-subscriber flush-interval-millis TimeUnit/MILLISECONDS executor f)))

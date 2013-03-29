@@ -7,6 +7,8 @@
            (org.jetlang.fibers ThreadFiber))
   (:use erajure.core expectations jreg))
 
+;; Core
+
 (expect 1 (let [a (atom 0)]
             (.onMessage (->callback #(swap! % inc)) a)
             @a))
@@ -18,6 +20,42 @@
        false #(= "passes" %) "doesn't pass"
        true (constantly 1) "anything"
        false (constantly nil) "anything")
+
+(expect "ran" (let [a (atom nil)]
+                (execute (SynchronousDisposingExecutor.) #(reset! a "ran"))
+                @a))
+
+(set! *warn-on-reflection* false) ; because type-hints on interaction aren't working.
+
+(expect-let [disposable (mock Disposable)]
+            (interaction (.dispose disposable))
+            (dispose disposable))
+
+(expect-let [scheduler (mock Scheduler)]
+            (interaction (.schedule scheduler a-fn 23 TimeUnit/MILLISECONDS))
+            (schedule scheduler a-fn 23))
+
+(expect-let [scheduler (mock Scheduler)]
+            (interaction (.scheduleAtFixedRate scheduler a-fn 5 10 TimeUnit/MILLISECONDS))
+            (schedule-at-fixed-rate scheduler a-fn 5 10))
+
+(expect-let [scheduler (mock Scheduler)]
+            (interaction (.scheduleWithFixedDelay scheduler a-fn 5 10 TimeUnit/MILLISECONDS))
+            (schedule-with-fixed-delay scheduler a-fn 5 10))
+
+(set! *warn-on-reflection* true)
+
+(defn core-fns-have-return-type-hints []
+  (let [cb (->callback nil)] (.onMessage cb nil))
+  (let [f (->filter nil)] (.passes f nil))
+  (let [d (schedule nil nil nil)] (.dispose d))
+  (let [d (schedule nil nil nil nil)] (.dispose d))
+  (let [d (schedule-at-fixed-rate nil nil nil nil)] (.dispose d))
+  (let [d (schedule-at-fixed-rate nil nil nil nil nil)] (.dispose d))
+  (let [d (schedule-with-fixed-delay nil nil nil nil)] (.dispose d))
+  (let [d (schedule-with-fixed-delay nil nil nil nil nil)] (.dispose d)))
+
+;; Channels
 
 (expect 1
   (let [chan (MemoryChannel.)
@@ -55,24 +93,10 @@
           (.await latch 5 TimeUnit/MILLISECONDS)
           @received))
 
-(expect "ran" (let [a (atom nil)]
-                (execute (SynchronousDisposingExecutor.) #(reset! a "ran"))
-                @a))
-
-(set! *warn-on-reflection* false) ; because type-hints on interaction aren't working.
-
-(expect-let [disposable (mock Disposable)]
-            (interaction (.dispose disposable))
-            (dispose disposable))
-
-(expect-let [scheduler (mock Scheduler)]
-            (interaction (.schedule scheduler a-fn 23 TimeUnit/MILLISECONDS))
-            (schedule scheduler a-fn 23))
-
-(expect-let [scheduler (mock Scheduler)]
-            (interaction (.scheduleAtFixedRate scheduler a-fn 5 10 TimeUnit/MILLISECONDS))
-            (schedule-at-fixed-rate scheduler a-fn 5 10))
-
-(expect-let [scheduler (mock Scheduler)]
-            (interaction (.scheduleWithFixedDelay scheduler a-fn 5 10 TimeUnit/MILLISECONDS))
-            (schedule-with-fixed-delay scheduler a-fn 5 10))
+(defn channel-fns-have-return-type-hints []
+  (let [d (subscribe nil nil)] (.dispose d))
+  (let [d (subscribe nil nil nil)] (.dispose d))
+  (let [s (->channel-subscriber nil nil)] (.getQueue s))
+  (let [s (->channel-subscriber nil nil nil)] (.getQueue s))
+  (let [s (->last-subscriber nil nil nil)] (.getQueue s))
+  (let [s (->last-subscriber nil nil nil nil)] (.getQueue s)))
