@@ -1,10 +1,12 @@
 (ns jreg
-  (:import [org.jetlang.core Callback]))
+  (:import (org.jetlang.core Callback
+                             Disposable)
+           (org.jetlang.channels Subscriber)))
 
-(defn ->callback [f]
+(defn ->callback ^Callback [f]
   (reify Callback
     (onMessage [_ message]
       (f message))))
 
-(defn subscribe [channel executor f]
+(defn subscribe ^Disposable [^Subscriber channel executor f]
   (.subscribe channel executor (->callback f)))
