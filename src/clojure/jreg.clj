@@ -10,9 +10,7 @@
 (defn dispose [^Disposable disposable] (.dispose disposable))
 
 (defn ->callback ^org.jetlang.core.Callback [f]
-  (reify Callback
-    (onMessage [_ message]
-      (f message))))
+  (reify Callback (onMessage [_ message] (f message))))
 
 (defn subscribe ^org.jetlang.core.Disposable [^Subscriber channel executor f]
   (.subscribe channel executor (->callback f)))
