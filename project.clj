@@ -1,8 +1,10 @@
-(defproject jreg "0.0.1"
+(defproject jreg "0.1.0-SNAPSHOT"
   :description "general clojure functions"
   :jar-name "jreg.jar"
+  :source-paths ["src/clojure"]
+  :java-source-paths ["src/java"]
   :dependencies [[org.clojure/clojure "1.3.0"]]
-  :dev-dependencies [[expectations "1.3.5"]
-                     [lein-expectations "0.0.1"]
-                     [lein-publishers "1.0.4"]
-                     [org.jetlang/jetlang "0.2.9"]])
+  :profiles {:dev {:dependencies [[expectations "1.4.36"]
+                                  [org.jetlang/jetlang "0.2.10"]]}}
+  :plugins [[lein-expectations "0.0.7"]
+            [lein-publishers "1.0.4"]])
