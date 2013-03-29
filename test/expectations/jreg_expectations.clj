@@ -10,11 +10,13 @@
             (.onMessage (->callback #(swap! % inc)) a)
             @a))
 
-(given [result message]
+(given [result filter-pred message]
        (expect result
-               (.passes (->filter #(= "passes" %)) message))
-       true "passes"
-       false "doesn't pass")
+               (.passes (->filter filter-pred) message))
+       true #(= "passes" %) "passes"
+       false #(= "passes" %) "doesn't pass"
+       true (constantly 1) "anything"
+       false (constantly nil) "anything")
 
 (expect 1
   (let [chan (MemoryChannel.)
