@@ -24,6 +24,16 @@
     (publish chan a)
     @a))
 
+(expect ["good message"]
+        (let [chan (MemoryChannel.)
+              a (atom [])]
+          (subscribe chan (->channel-subscriber (SynchronousDisposingExecutor.)
+                                                #(swap! a conj %)
+                                                #(re-find #"good" %)))
+          (publish chan "good message")
+          (publish chan "bad message")
+          @a))
+
 (expect "ran" (let [a (atom nil)]
                 (execute (SynchronousDisposingExecutor.) #(reset! a "ran"))
                 @a))
