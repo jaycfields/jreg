@@ -7,6 +7,8 @@
            (org.jetlang.channels Publisher
                                  Subscriber)))
 
+(defn dispose [^Disposable disposable] (.dispose disposable))
+
 (defn ->callback ^org.jetlang.core.Callback [f]
   (reify Callback
     (onMessage [_ message]

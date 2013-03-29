@@ -2,7 +2,7 @@
 
 (ns expectations.jreg-expectations
   (:import (java.util.concurrent TimeUnit)
-           (org.jetlang.core Callback Scheduler SynchronousDisposingExecutor)
+           (org.jetlang.core Callback Disposable Scheduler SynchronousDisposingExecutor)
            (org.jetlang.channels MemoryChannel))
   (:use erajure.core expectations jreg))
 
@@ -24,6 +24,10 @@
                 @a))
 
 (set! *warn-on-reflection* false) ; because type-hints on interaction aren't working.
+
+(expect-let [disposable (mock Disposable)]
+            (interaction (.dispose disposable))
+            (dispose disposable))
 
 (expect-let [scheduler (mock Scheduler)]
             (interaction (.schedule scheduler a-fn 23 TimeUnit/MILLISECONDS))
