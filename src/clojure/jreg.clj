@@ -1,4 +1,4 @@
-(ns jreg.core
+(ns jreg
   (:import [org.jetlang.core Callback]))
 
 (defn ->callback [f]

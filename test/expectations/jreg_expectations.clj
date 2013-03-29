@@ -1,7 +1,7 @@
-(ns jreg.expectations.core-expectations
+(ns expectations.jreg-expectations
   (:import [org.jetlang.core Callback SynchronousDisposingExecutor]
            [org.jetlang.channels MemoryChannel])
-  (:use expectations jreg.core))
+  (:use expectations jreg))
 
 (expect Callback (->callback identity))
 (expect 1 (let [a (atom 0)]
