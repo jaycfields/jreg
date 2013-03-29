@@ -1,5 +1,6 @@
 (ns jreg
-  (:import (org.jetlang.core Callback
+  (:import (java.util.concurrent Executor)
+           (org.jetlang.core Callback
                              Disposable)
            (org.jetlang.channels Subscriber)))
 
@@ -10,3 +11,6 @@
 
 (defn subscribe ^Disposable [^Subscriber channel executor f]
   (.subscribe channel executor (->callback f)))
+
+(defn execute [^Executor executor runnable]
+  (.execute executor runnable))
