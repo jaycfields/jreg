@@ -6,10 +6,15 @@
            (org.jetlang.channels MemoryChannel))
   (:use erajure.core expectations jreg))
 
-(expect Callback (->callback identity))
 (expect 1 (let [a (atom 0)]
             (.onMessage (->callback #(swap! % inc)) a)
             @a))
+
+(given [result message]
+       (expect result
+               (.passes (->filter #(= "passes" %)) message))
+       true "passes"
+       false "doesn't pass")
 
 (expect 1
   (let [chan (MemoryChannel.)
