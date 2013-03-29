@@ -3,6 +3,7 @@
                                  TimeUnit)
            (org.jetlang.core Callback
                              Disposable
+                             Filter
                              Scheduler)
            (org.jetlang.channels Publisher
                                  Subscriber)))
@@ -11,6 +12,9 @@
 
 (defn ->callback ^org.jetlang.core.Callback [f]
   (reify Callback (onMessage [_ message] (f message))))
+
+(defn ->filter ^org.jetlang.core.Filter [pred]
+  (reify Filter (passes [_ message] (pred message))))
 
 (defn subscribe ^org.jetlang.core.Disposable [^Subscriber channel executor f]
   (.subscribe channel executor (->callback f)))
