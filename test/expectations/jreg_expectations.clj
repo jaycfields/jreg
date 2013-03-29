@@ -1,6 +1,7 @@
+(set! *warn-on-reflection* true)
 (ns expectations.jreg-expectations
-  (:import [org.jetlang.core Callback SynchronousDisposingExecutor]
-           [org.jetlang.channels MemoryChannel])
+  (:import (org.jetlang.core Callback SynchronousDisposingExecutor)
+           (org.jetlang.channels MemoryChannel))
   (:use expectations jreg))
 
 (expect Callback (->callback identity))
