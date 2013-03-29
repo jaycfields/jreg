@@ -14,7 +14,7 @@
         executor (SynchronousDisposingExecutor.)
         a (atom 0)]
     (subscribe chan executor #(swap! % inc))
-    (.publish chan a)
+    (publish chan a)
     @a))
 
 (expect "ran" (let [a (atom nil)]
