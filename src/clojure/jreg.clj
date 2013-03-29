@@ -6,6 +6,7 @@
                              Filter
                              Scheduler)
            (org.jetlang.channels ChannelSubscription
+                                 LastSubscriber
                                  Publisher
                                  Subscriber)))
 
@@ -24,6 +25,14 @@
   (^org.jetlang.channels.Subscribable
    [executor f filter-pred]
    (ChannelSubscription. executor (->callback f) (->filter filter-pred))))
+
+(defn ->last-subscriber
+  (^org.jetlang.channels.Subscribable
+   [flush-interval time-unit executor f]
+   (LastSubscriber. executor (->callback f) flush-interval time-unit))
+  (^org.jetlang.channels.Subscribable
+   [flush-interval-millis executor f]
+   (->last-subscriber flush-interval-millis TimeUnit/MILLISECONDS executor f)))
 
 (defn subscribe
   (^org.jetlang.core.Disposable [^Subscriber channel executor f]
