@@ -5,7 +5,8 @@
                              Disposable
                              Filter
                              Scheduler)
-           (org.jetlang.channels Publisher
+           (org.jetlang.channels ChannelSubscription
+                                 Publisher
                                  Subscriber)))
 
 (defn dispose [^Disposable disposable] (.dispose disposable))
@@ -14,10 +15,21 @@
   (reify Callback (onMessage [_ message] (f message))))
 
 (defn ->filter ^org.jetlang.core.Filter [pred]
-  (reify Filter (passes [_ message] (pred message))))
+  (reify Filter (passes [_ message] (boolean (pred message)))))
 
-(defn subscribe ^org.jetlang.core.Disposable [^Subscriber channel executor f]
-  (.subscribe channel executor (->callback f)))
+(defn ->channel-subscriber
+  (^org.jetlang.channels.Subscribable
+   [executor f]
+   (ChannelSubscription. executor (->callback f)))
+  (^org.jetlang.channels.Subscribable
+   [executor f filter-pred]
+   (ChannelSubscription. executor (->callback f) (->filter filter-pred))))
+
+(defn subscribe
+  (^org.jetlang.core.Disposable [^Subscriber channel executor f]
+                                (.subscribe channel executor (->callback f)))
+  (^org.jetlang.core.Disposable [^Subscriber channel subscribable]
+                                (.subscribe channel subscribable)))
 
 (defn publish [^Publisher channel message]
   (.publish channel message))
