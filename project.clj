@@ -1,5 +1,5 @@
-(defproject jreg "0.1.0"
-  :description "general clojure functions"
+(defproject jreg "0.2.0"
+  :description "a Clojure wrapper for Jetlang"
   :jar-name "jreg.jar"
   :source-paths ["src/clojure"]
   :java-source-paths ["src/java"]
