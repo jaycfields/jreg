@@ -122,6 +122,30 @@
   1 TimeUnit/MILLISECONDS
   (interval 1 :millis) TimeUnit/MILLISECONDS)
 
+(given [flush-interval time-unit]
+  (expect [{"A" "A 1"}
+           {"A" "A 3" "B" "B 1"}]
+    (let [chan (MemoryChannel.)
+          consuming-fiber (ThreadFiber.)
+          received (atom [])
+          latch (CountDownLatch. 2)]
+      (.start consuming-fiber)
+      (subscribe chan (->keyed-batch-subscriber #(.substring ^String % 0 1)
+                                                flush-interval
+                                                consuming-fiber
+                                                (fn [m]
+                                                  (swap! received conj m)
+                                                  (.countDown latch))))
+      (publish chan "A 1")
+      (Thread/sleep (+ 2 (.toMillis time-unit 1)))
+      (publish chan "A 2")
+      (publish chan "A 3")
+      (publish chan "B 1")
+      (.await latch 2 time-unit)
+      @received))
+  1 TimeUnit/MILLISECONDS
+  (interval 1 :millis) TimeUnit/MILLISECONDS)
+
 (defn channel-fns-have-return-type-hints []
   (let [d (subscribe nil nil)] (.dispose d))
   (let [d (subscribe nil nil nil)] (.dispose d))

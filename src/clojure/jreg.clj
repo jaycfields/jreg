@@ -6,6 +6,8 @@
                              Filter
                              Scheduler)
            (org.jetlang.channels ChannelSubscription
+                                 Converter
+                                 KeyedBatchSubscriber
                                  LastSubscriber
                                  Publisher
                                  Subscriber)))
@@ -91,3 +93,18 @@
    [flush-interval filter-pred executor f]
    (LastSubscriber. executor (->callback f) (->filter filter-pred)
                     (get-units flush-interval) (get-time-unit flush-interval))))
+
+(defn ->converter ^org.jetlang.channels.Converter [f]
+  (reify Converter (convert [_ msg] (f msg))))
+
+(defn ->keyed-batch-subscriber
+  (^org.jetlang.channels.Subscribable
+   [converter flush-interval executor f]
+   (KeyedBatchSubscriber. executor (->callback f)
+                          (get-units flush-interval) (get-time-unit flush-interval)
+                          (->converter converter)))
+  (^org.jetlang.channels.Subscribable
+   [converter flush-interval filter-pred executor f]
+   (KeyedBatchSubscriber. executor (->callback f) (->filter filter-pred)
+                          (get-units flush-interval) (get-time-unit flush-interval)
+                          (->converter converter))))
