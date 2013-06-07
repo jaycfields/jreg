@@ -6,9 +6,36 @@
                              Filter
                              Scheduler)
            (org.jetlang.channels ChannelSubscription
+                                 Converter
+                                 KeyedBatchSubscriber
                                  LastSubscriber
                                  Publisher
                                  Subscriber)))
+
+(defprotocol ITimeInterval
+  (get-units [this])
+  (get-time-unit [this]))
+
+(extend-protocol ITimeInterval
+  Long
+  (get-units [this] this)
+  (get-time-unit [_] TimeUnit/MILLISECONDS))
+
+(defrecord TimeInterval [units time-unit]
+  ITimeInterval
+  (get-units [_] units)
+  (get-time-unit [_] time-unit))
+
+(def abbr->time-unit {:nanos TimeUnit/NANOSECONDS
+                      :micros TimeUnit/MICROSECONDS
+                      :millis TimeUnit/MILLISECONDS
+                      :secs TimeUnit/SECONDS
+                      :mins TimeUnit/MINUTES
+                      :hrs TimeUnit/HOURS
+                      :days TimeUnit/DAYS})
+
+(defn interval [units abbr-k]
+  (TimeInterval. units (abbr->time-unit abbr-k)))
 
 ;; Core
 
@@ -23,25 +50,20 @@
 (defn execute [^Executor executor runnable]
   (.execute executor runnable))
 
-(defn schedule
-  (^Disposable [^Scheduler scheduler command delay time-unit]
-               (.schedule scheduler command delay time-unit))
-  (^Disposable [scheduler command delay-millis]
-               (schedule scheduler command delay-millis TimeUnit/MILLISECONDS)))
+(defn schedule ^org.jetlang.core.Disposable [^Scheduler scheduler command delay]
+  (.schedule scheduler command (get-units delay) (get-time-unit delay)))
 
 (defn schedule-at-fixed-rate
-  (^Disposable [^Scheduler scheduler command initial-delay period time-unit]
-               (.scheduleAtFixedRate scheduler command initial-delay period time-unit))
-  (^Disposable [scheduler command initial-delay-millis period-millis]
-               (schedule-at-fixed-rate scheduler command initial-delay-millis period-millis
-                                       TimeUnit/MILLISECONDS)))
+  ^org.jetlang.core.Disposable [^Scheduler scheduler command initial-delay period]
+  (assert (= (get-time-unit initial-delay) (get-time-unit period)))
+  (.scheduleAtFixedRate
+   scheduler command (get-units initial-delay) (get-units period) (get-time-unit period)))
 
 (defn schedule-with-fixed-delay
-  (^Disposable [^Scheduler scheduler command initial-delay delay time-unit]
-               (.scheduleWithFixedDelay scheduler command initial-delay delay time-unit))
-  (^Disposable [scheduler command initial-delay-millis delay-millis]
-               (schedule-with-fixed-delay scheduler command initial-delay-millis delay-millis
-                 TimeUnit/MILLISECONDS)))
+  ^org.jetlang.core.Disposable [^Scheduler scheduler command initial-delay delay]
+  (assert (= (get-time-unit initial-delay) (get-time-unit delay)))
+  (.scheduleWithFixedDelay
+   scheduler command (get-units initial-delay) (get-units delay) (get-time-unit delay)))
 
 ;; Channels
 
@@ -59,13 +81,30 @@
    [executor f]
    (ChannelSubscription. executor (->callback f)))
   (^org.jetlang.channels.Subscribable
-   [executor f filter-pred]
+   [filter-pred executor f]
    (ChannelSubscription. executor (->callback f) (->filter filter-pred))))
 
 (defn ->last-subscriber
   (^org.jetlang.channels.Subscribable
-   [flush-interval time-unit executor f]
-   (LastSubscriber. executor (->callback f) flush-interval time-unit))
+   [flush-interval executor f]
+   (LastSubscriber. executor (->callback f)
+                    (get-units flush-interval) (get-time-unit flush-interval)))
   (^org.jetlang.channels.Subscribable
-   [flush-interval-millis executor f]
-   (->last-subscriber flush-interval-millis TimeUnit/MILLISECONDS executor f)))
+   [flush-interval filter-pred executor f]
+   (LastSubscriber. executor (->callback f) (->filter filter-pred)
+                    (get-units flush-interval) (get-time-unit flush-interval))))
+
+(defn ->converter ^org.jetlang.channels.Converter [f]
+  (reify Converter (convert [_ msg] (f msg))))
+
+(defn ->keyed-batch-subscriber
+  (^org.jetlang.channels.Subscribable
+   [converter flush-interval executor f]
+   (KeyedBatchSubscriber. executor (->callback f)
+                          (get-units flush-interval) (get-time-unit flush-interval)
+                          (->converter converter)))
+  (^org.jetlang.channels.Subscribable
+   [converter flush-interval filter-pred executor f]
+   (KeyedBatchSubscriber. executor (->callback f) (->filter filter-pred)
+                          (get-units flush-interval) (get-time-unit flush-interval)
+                          (->converter converter))))
