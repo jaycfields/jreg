@@ -7,6 +7,5 @@
 /checkouts
 /.lein-deps-sum
 .fig
-package.fig
 .idea/workspace.xml
 target

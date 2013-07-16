@@ -1,0 +1,6 @@
+resource "target/jreg.jar"
+
+config default
+  append CLASSPATH=@/target/jreg.jar
+  append SOURCEPATH=@/target/jreg.jar
+end
