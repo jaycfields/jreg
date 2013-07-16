@@ -173,4 +173,6 @@
   (let [s (->channel-subscriber nil nil)] (.getQueue s))
   (let [s (->channel-subscriber nil nil nil)] (.getQueue s))
   (let [s (->last-subscriber nil nil nil)] (.getQueue s))
-  (let [s (->last-subscriber nil nil nil nil)] (.getQueue s)))
+  (let [s (->last-subscriber nil nil nil nil)] (.getQueue s))
+  (let [s (->batch-subscriber nil nil nil)] (.getQueue s))
+  (let [s (->batch-subscriber nil nil nil nil)] (.getQueue s)))
