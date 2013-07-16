@@ -123,6 +123,27 @@
   (interval 1 :millis) TimeUnit/MILLISECONDS)
 
 (given [flush-interval time-unit]
+  (expect [["first message"] ["second message" "third message"]]
+    (let [chan (MemoryChannel.)
+          consuming-fiber (ThreadFiber.)
+          received (atom [])
+          latch (CountDownLatch. 2)]
+      (.start consuming-fiber)
+      (subscribe chan (->batch-subscriber flush-interval
+                                          consuming-fiber
+                                          (fn [m]
+                                            (swap! received conj m)
+                                            (.countDown latch))))
+      (publish chan "first message")
+      (Thread/sleep (+ 2 (.toMillis time-unit 1)))
+      (publish chan "second message")
+      (publish chan "third message")
+      (.await latch 2 time-unit)
+      @received))
+  1 TimeUnit/MILLISECONDS
+  (interval 1 :millis) TimeUnit/MILLISECONDS)
+
+(given [flush-interval time-unit]
   (expect [{"A" "A 1"}
            {"A" "A 3" "B" "B 1"}]
     (let [chan (MemoryChannel.)
