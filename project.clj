@@ -1,4 +1,4 @@
-(defproject jreg "0.4.0"
+(defproject jreg "0.4.1"
   :description "a Clojure wrapper for Jetlang"
   :jar-name "jreg.jar"
   :source-paths ["src/clojure"]
@@ -7,4 +7,4 @@
   :profiles {:dev {:dependencies [[expectations "1.4.36"]
                                   [org.jetlang/jetlang "0.2.10"]]}}
   :plugins [[lein-expectations "0.0.7"]
-            [lein-publishers "1.0.4"]])
+            [lein-publishers "1.0.11"]])

@@ -10,6 +10,7 @@
                                  KeyedBatchSubscriber
                                  BatchSubscriber
                                  LastSubscriber
+                                 MemoryChannel
                                  Publisher
                                  Subscriber)))
 
@@ -67,6 +68,9 @@
    scheduler command (get-units initial-delay) (get-units delay) (get-time-unit delay)))
 
 ;; Channels
+
+(defn channel []
+  (MemoryChannel.))
 
 (defn publish [^Publisher channel message]
   (.publish channel message))
