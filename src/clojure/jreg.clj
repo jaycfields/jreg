@@ -4,7 +4,8 @@
            (org.jetlang.core Callback
                              Disposable
                              Filter
-                             Scheduler)
+                             Scheduler
+                             SynchronousDisposingExecutor)
            (org.jetlang.channels ChannelSubscription
                                  Converter
                                  KeyedBatchSubscriber
@@ -40,6 +41,8 @@
   (TimeInterval. units (abbr->time-unit abbr-k)))
 
 ;; Core
+
+(defn synchronous-disposing-executor [] (SynchronousDisposingExecutor.))
 
 (defn dispose [^Disposable disposable] (.dispose disposable))
 
