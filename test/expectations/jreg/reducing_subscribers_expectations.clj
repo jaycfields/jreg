@@ -11,9 +11,9 @@
         latch (CountDownLatch. 1)]
     (.start fiber)
     (subscribe chan (->simple-reducing-subscriber (last-message-with-earliest :timestamp)
-                                           (interval 5 :millis)
-                                           fiber
-                                           #(do (a-fn1 %) (.countDown latch))))
+                                                  (interval 5 :millis)
+                                                  fiber
+                                                  #(do (a-fn1 %) (.countDown latch))))
     (publish chan {:timestamp 1 :foo "bar"})
     (.await latch 10 ms)
     (.dispose fiber)))
@@ -25,9 +25,9 @@
           barrier (CyclicBarrier. 2)]
       (.start fiber)
       (subscribe chan (->simple-reducing-subscriber (last-message-with-earliest :timestamp)
-                                             (interval 5 :millis)
-                                             fiber
-                                             #(do (a-fn1 %) (.await barrier 10 ms))))
+                                                    (interval 5 :millis)
+                                                    fiber
+                                                    #(do (a-fn1 %) (.await barrier 10 ms))))
       (publish chan {:timestamp 1 :foo "bar"})
       (publish chan {:timestamp 2 :foo "baz"})
       (.await barrier 10 ms)

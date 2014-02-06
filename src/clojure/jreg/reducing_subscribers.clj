@@ -43,7 +43,7 @@
 (deftype ReducingSubscriber
     [reduce-fn flush-interval filter-pred ^Fiber fiber f a]
   Runnable
-  (run [this]
+  (run [_]
     (let [state (swap! a flush-state)]
       (f (:flush-val state))))
   Subscribable
