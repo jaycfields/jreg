@@ -56,11 +56,46 @@
             (schedule fiber this flush-interval)
             (execute fiber this)))))))
 
+(defrecord EagerReducingSubscriberState [^boolean flush-and-schedule ^long awaiting-flushes pending-val flush-val]
+  ReducingSubscriberState
+  (flush-state [_] (EagerReducingSubscriberState. false (dec awaiting-flushes) no-val pending-val))
+  (accept-message [_ reduce-fn message]
+    (let [no-flushes-pending (zero? awaiting-flushes)]
+      (EagerReducingSubscriberState. no-flushes-pending
+                                     (if no-flushes-pending 2 awaiting-flushes)
+                                     (if (val? pending-val)
+                                       (reduce-fn pending-val message)
+                                       message)
+                                     no-val))))
+
+(def ^:private eager-initial-state (EagerReducingSubscriberState. false 0 no-val no-val))
+
+(deftype EagerReducingSubscriber [reduce-fn flush-interval filter-pred ^Fiber fiber cb a]
+  Runnable
+  (run [_]
+    (let [v (:flush-val (swap! a flush-state))]
+      (when (val? v)
+        (cb v))))
+  Subscribable
+  (getQueue [_] fiber)
+  (onMessage [this message]
+    (when (or (nil? filter-pred) (filter-pred message))
+      (let [state (swap! a accept-message reduce-fn message)]
+        (when (:flush-and-schedule state)
+          (execute fiber this)
+          (schedule fiber this flush-interval))))))
+
 (defn ->simple-reducing-subscriber
   ([reduce-fn flush-interval fiber f]
      (->simple-reducing-subscriber reduce-fn flush-interval nil fiber f))
   ([reduce-fn flush-interval filter-pred fiber f]
      (->ReducingSubscriber reduce-fn flush-interval filter-pred fiber f (atom simple-initial-state))))
+
+(defn ->eager-reducing-subscriber
+  ([reduce-fn flush-interval fiber f]
+     (->eager-reducing-subscriber reduce-fn flush-interval nil fiber f))
+  ([reduce-fn flush-interval filter-pred fiber f]
+     (->EagerReducingSubscriber reduce-fn flush-interval filter-pred fiber f (atom eager-initial-state))))
 
 (defn ->keyed-batch-reducing-subscriber
   ([key-resolver reduce-fn flush-interval fiber f]
