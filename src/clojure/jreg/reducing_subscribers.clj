@@ -1,5 +1,5 @@
 (ns jreg.reducing-subscribers
-  (:require [jreg :refer (get-units schedule execute)])
+  (:require [jreg :refer (dispose get-units schedule schedule-at-fixed-rate execute)])
   (:import (org.jetlang.channels Subscribable) (org.jetlang.fibers Fiber)))
 
 (defonce ^:private no-val (Object.))
@@ -56,34 +56,38 @@
             (schedule fiber this flush-interval)
             (execute fiber this)))))))
 
-(defrecord EagerReducingSubscriberState [^boolean flush-and-schedule ^long awaiting-flushes pending-val flush-val]
-  ReducingSubscriberState
-  (flush-state [_] (EagerReducingSubscriberState. false (dec awaiting-flushes) no-val pending-val))
-  (accept-message [_ reduce-fn message]
-    (let [no-flushes-pending (zero? awaiting-flushes)]
-      (EagerReducingSubscriberState. no-flushes-pending
-                                     (if no-flushes-pending 2 awaiting-flushes)
-                                     (if (val? pending-val)
-                                       (reduce-fn pending-val message)
-                                       message)
-                                     no-val))))
-
-(def ^:private eager-initial-state (EagerReducingSubscriberState. false 0 no-val no-val))
+(def ^:private eager-initial-state {:pending-val no-val})
 
 (deftype EagerReducingSubscriber [reduce-fn flush-interval filter-pred ^Fiber fiber cb a]
   Runnable
   (run [_]
-    (let [v (:flush-val (swap! a flush-state))]
-      (when (val? v)
-        (cb v))))
+    (let [state (swap! a (fn [{:keys [schedule-control pending-val]}]
+                           (let [keep-on-schedule? (val? pending-val)]
+                             {:pending-val no-val :schedule-control (if keep-on-schedule? schedule-control nil)
+                              :do-flush-val pending-val :do-dispose (if keep-on-schedule? nil schedule-control)})))
+          v (:do-flush-val state)
+          schedule-control (:do-dispose state)]
+      (when (val? v) (cb v))
+      (when schedule-control (dispose schedule-control))))
   Subscribable
   (getQueue [_] fiber)
   (onMessage [this message]
     (when (or (nil? filter-pred) (filter-pred message))
-      (let [state (swap! a accept-message reduce-fn message)]
-        (when (:flush-and-schedule state)
-          (execute fiber this)
-          (schedule fiber this flush-interval))))))
+      (let [state (loop []
+                    (let [{:keys [schedule-control pending-val] :as oldval} @a
+                          new-schedule-control (if schedule-control
+                                                 nil
+                                                 (schedule-at-fixed-rate fiber this flush-interval flush-interval))
+                          newval {:schedule-control (or schedule-control new-schedule-control)
+                                  :pending-val (if (val? pending-val) (reduce-fn pending-val message) message)
+                                  :do-execute new-schedule-control}]
+                      (if (compare-and-set! a oldval newval)
+                        newval
+                        (do
+                          (when new-schedule-control (dispose new-schedule-control))
+                          (recur)))))]
+        (when (:do-execute state)
+          (execute fiber this))))))
 
 (defn ->simple-reducing-subscriber
   ([reduce-fn flush-interval fiber f]

@@ -36,18 +36,25 @@
   (a-fn1 {:timestamp 1 :foo "baz"})
   (a-fn1 {:timestamp 3 :foo "quux"}))
 
-(expect (interaction (a-fn1 {:timestamp 1 :foo "bar"}))
-  (let [chan (channel)
-        fiber (ThreadFiber.)
-        latch (CountDownLatch. 1)]
-    (.start fiber)
-    (subscribe chan (->eager-reducing-subscriber (last-message-with-earliest :timestamp)
-                                                 (interval 5 :secs)
-                                                 fiber
-                                                 #(do (a-fn1 %) (.countDown latch))))
-    (publish chan {:timestamp 1 :foo "bar"})
-    (.await latch 10 ms)
-    (.dispose fiber)))
+(given [call]
+  (expect (interaction call)
+    (let [chan (channel)
+          fiber (ThreadFiber.)
+          barrier (CyclicBarrier. 2)]
+      (.start fiber)
+      (subscribe chan (->eager-reducing-subscriber (last-message-with-earliest :timestamp)
+                                                   (interval 20 :millis)
+                                                   fiber
+                                                   #(do (a-fn1 %) (.await barrier 5 ms))))
+      (publish chan {:timestamp 1 :k "foo"}) ; second eager delivery
+      (.await barrier 5 ms)
+      (.sleep ms 25) ; slightly longer than flush interval
+      (publish chan {:timestamp 2 :k "bar"}) ; second eager delivery
+      (.await barrier 5 ms)
+      (.dispose fiber)))
+
+  (a-fn1 {:timestamp 1 :k "foo"})
+  (a-fn1 {:timestamp 2 :k "bar"}))
 
 (given [call]
   (expect (interaction call)
@@ -56,39 +63,37 @@
           barrier (CyclicBarrier. 2)]
       (.start fiber)
       (subscribe chan (->eager-reducing-subscriber (last-message-with-earliest :timestamp)
-                                                   (interval 30 :millis)
+                                                   (interval 20 :millis)
                                                    fiber
-                                                   #(do (a-fn1 %) (.await barrier 10 ms))))
+                                                   #(do (a-fn1 %) (.await barrier 5 ms))))
       (publish chan {:timestamp 1 :k "foo"})
+      (.await barrier 5 ms) ; eager delivery
       (publish chan {:timestamp 2 :k "bar"})
       (publish chan {:timestamp 3 :k "baz"})
-      (.await barrier 10 ms) ; first eager delivery
-      (.await barrier 40 ms) ; reduced delivery
-      (publish chan {:timestamp 4 :k "quux"})
-      (.await barrier 10 ms))) ; second eager delivery
-
-  (a-fn1 {:timestamp 1 :k "foo"}) ; first eager delivery
-  (a-fn1 {:timestamp 2 :k "baz"}) ; reduced delivery
-  (a-fn1 {:timestamp 4 :k "quux"})) ; second eager delivery
-
-(given [call]
-  (expect (interaction call)
-    (let [chan (channel)
-          fiber (ThreadFiber.)
-          barrier (CyclicBarrier. 2)]
-      (.start fiber)
-      (subscribe chan (->eager-reducing-subscriber (last-message-with-earliest :timestamp)
-                                                   (interval 100 :millis)
-                                                   fiber
-                                                   #(do (a-fn1 %) (.await barrier 10 ms))))
-      (publish chan {:timestamp 1 :k "foo"})
-      (.await barrier 10 ms) ; eager delivery
-      (.sleep ms 50)
-      (publish chan {:timestamp 2 :k "bar"})
-      (.await barrier 60 ms))) ; delayed delivery after less than interval, because the clock started ticking on the first message, not the second
+      (.await barrier 25 ms) ; reduced delivery
+      (publish chan {:timestamp 4 :k "qux"})
+      (.sleep ms 5) ; to reliably give an overeager subscriber time to erroneously pass that message straight through.
+      (publish chan {:timestamp 5 :k "quux"})
+      (.await barrier 20 ms))) ; second reduced delivery
 
   (a-fn1 {:timestamp 1 :k "foo"}) ; eager delivery
-  (a-fn1 {:timestamp 2 :k "bar"})) ; delayed delivery
+  (a-fn1 {:timestamp 2 :k "baz"}) ; reduced delivery
+  (a-fn1 {:timestamp 4 :k "quux"})) ; second reduced delivery
+
+(expect (interaction (a-fn1 {:timestamp 2 :k "bar"}))
+  (let [chan (channel)
+        fiber (ThreadFiber.)
+        barrier (CyclicBarrier. 2)]
+    (.start fiber)
+    (subscribe chan (->eager-reducing-subscriber (last-message-with-earliest :timestamp)
+                                                 (interval 50 :millis)
+                                                 fiber
+                                                 #(do (a-fn1 %) (.await barrier 5 ms))))
+    (publish chan {:timestamp 1 :k "foo"})
+    (.await barrier 5 ms) ; eager delivery
+    (.sleep ms 25)
+    (publish chan {:timestamp 2 :k "bar"})
+    (.await barrier 30 ms))) ; delivery delayed less than interval, because timer started on the first message, not the second
 
 (expect (interaction (a-fn1 {"bar" {:timestamp 1 :foo "bar" :k "v"}}))
   (let [chan (channel)
