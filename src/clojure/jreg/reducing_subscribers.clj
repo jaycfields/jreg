@@ -38,9 +38,10 @@
                                           (let [k (key-resolver message)]
                                             (if (val? pending-val)
                                               (let [pending-k-val (get pending-val k no-val)]
-                                                (if (val? pending-k-val)
-                                                  (assoc pending-val k (reduce-fn pending-k-val message))
-                                                  (assoc pending-val k message)))
+                                                (assoc pending-val k
+                                                       (if (val? pending-k-val)
+                                                         (reduce-fn pending-k-val message)
+                                                         message)))
                                               {k message}))
                                           nil))))
 
@@ -66,10 +67,8 @@
   SubscriberStateFlush
   (flush-state [_]
     (let [keep-on-schedule? (val? pending-val)]
-      (EagerReducingSubscriberState. no-val
-                                     (if keep-on-schedule? schedule-control nil)
-                                     pending-val
-                                     (if keep-on-schedule? nil schedule-control)
+      (EagerReducingSubscriberState. no-val (if keep-on-schedule? schedule-control nil)
+                                     pending-val (if keep-on-schedule? nil schedule-control)
                                      false)))
   EagerReducingSubscriberStateAccept
   (eager-accept [_ reduce-fn message fiber flush-runnable flush-interval]
@@ -78,9 +77,7 @@
                                  (schedule-at-fixed-rate fiber flush-runnable flush-interval flush-interval))]
       (EagerReducingSubscriberState. (if (val? pending-val) (reduce-fn pending-val message) message)
                                      (or schedule-control new-schedule-control)
-                                     nil
-                                     nil
-                                     (boolean new-schedule-control))))
+                                     nil nil (boolean new-schedule-control))))
   (rollback-from-accept [_]
     (when do-execute (dispose schedule-control))))
 
