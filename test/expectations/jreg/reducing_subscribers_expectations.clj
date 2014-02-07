@@ -46,7 +46,7 @@
                                                    (interval 20 :millis)
                                                    fiber
                                                    #(do (a-fn1 %) (.await barrier 5 ms))))
-      (publish chan {:timestamp 1 :k "foo"}) ; second eager delivery
+      (publish chan {:timestamp 1 :k "foo"}) ; first eager delivery
       (.await barrier 5 ms)
       (.sleep ms 25) ; slightly longer than flush interval
       (publish chan {:timestamp 2 :k "bar"}) ; second eager delivery
@@ -93,6 +93,62 @@
     (.await barrier 5 ms) ; eager delivery
     (.sleep ms 25)
     (publish chan {:timestamp 2 :k "bar"})
+    (.await barrier 30 ms))) ; delivery delayed less than interval, because timer started on the first message, not the second
+
+(given [call]
+  (expect (interaction call)
+    (let [chan (channel)
+          fiber (ThreadFiber.)
+          barrier (CyclicBarrier. 2)]
+      (.start fiber)
+      (subscribe chan (->eager-last-subscriber (interval 20 :millis)
+                                               fiber
+                                               #(do (a-fn1 %) (.await barrier 5 ms))))
+      (publish chan {:k "foo"}) ; first eager delivery
+      (.await barrier 5 ms)
+      (.sleep ms 25) ; slightly longer than flush interval
+      (publish chan {:k "bar"}) ; second eager delivery
+      (.await barrier 5 ms)
+      (.dispose fiber)))
+
+  (a-fn1 {:k "foo"})
+  (a-fn1 {:k "bar"}))
+
+(given [call]
+  (expect (interaction call)
+    (let [chan (channel)
+          fiber (ThreadFiber.)
+          barrier (CyclicBarrier. 2)]
+      (.start fiber)
+      (subscribe chan (->eager-last-subscriber (interval 20 :millis)
+                                               fiber
+                                               #(do (a-fn1 %) (.await barrier 5 ms))))
+      (publish chan {:k "foo"})
+      (.await barrier 5 ms) ; eager delivery
+      (publish chan {:k "bar"})
+      (publish chan {:k "baz"})
+      (.await barrier 25 ms) ; delayed delivery
+      (publish chan {:k "qux"})
+      (.sleep ms 5) ; to reliably give an overeager subscriber time to erroneously pass that message straight through.
+      (publish chan {:k "quux"})
+      (.await barrier 20 ms))) ; second delayed delivery
+
+  (a-fn1 {:k "foo"}) ; eager delivery
+  (a-fn1 {:k "baz"}) ; delayed delivery
+  (a-fn1 {:k "quux"})) ; second delayed delivery
+
+(expect (interaction (a-fn1 {:k "bar"}))
+  (let [chan (channel)
+        fiber (ThreadFiber.)
+        barrier (CyclicBarrier. 2)]
+    (.start fiber)
+    (subscribe chan (->eager-last-subscriber (interval 50 :millis)
+                                             fiber
+                                             #(do (a-fn1 %) (.await barrier 5 ms))))
+    (publish chan {:k "foo"})
+    (.await barrier 5 ms) ; eager delivery
+    (.sleep ms 25)
+    (publish chan {:k "bar"})
     (.await barrier 30 ms))) ; delivery delayed less than interval, because timer started on the first message, not the second
 
 (expect (interaction (a-fn1 {"bar" {:timestamp 1 :foo "bar" :k "v"}}))

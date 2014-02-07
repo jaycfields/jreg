@@ -86,6 +86,30 @@
 
 (def ^:private eager-initial-state (map->EagerReducingSubscriberState {:pending-val no-val :do-execute false}))
 
+(defrecord EagerLastSubscriberState [pending-val schedule-control do-flush-val do-dispose ^boolean do-execute]
+  SubscriberStateFlush
+  (flush-state [_]
+    (let [keep-on-schedule? (val? pending-val)]
+      (EagerLastSubscriberState. no-val
+                                 (if keep-on-schedule? schedule-control nil)
+                                 pending-val
+                                 (if keep-on-schedule? nil schedule-control)
+                                 false)))
+  EagerReducingSubscriberStateAccept
+  (eager-accept [_ _ message fiber flush-runnable flush-interval]
+    (let [new-schedule-control (if schedule-control
+                                 nil
+                                 (schedule-at-fixed-rate fiber flush-runnable flush-interval flush-interval))]
+      (EagerLastSubscriberState. message
+                                 (or schedule-control new-schedule-control)
+                                 nil
+                                 nil
+                                 (boolean new-schedule-control))))
+  (rollback-from-accept [_]
+    (when do-execute (dispose schedule-control))))
+
+(def ^:private eager-last-subscriber-initial-state (map->EagerLastSubscriberState {:pending-val no-val :do-execute false}))
+
 (defn- swap-with-rollback! [atom rollback-f f v w x y z]
   (loop [oldval @atom]
     (let [newval (f oldval v w x y z)]
@@ -125,6 +149,15 @@
      (when-not (pos? (get-units flush-interval))
        (throw (IllegalArgumentException. "flush-interval must be positive")))
      (->EagerReducingSubscriber reduce-fn flush-interval filter-pred fiber f (atom eager-initial-state))))
+
+(defn ->eager-last-subscriber
+  "Logically equivalent to an eager-reducing-subscriber with a reduce-fn of
+   (fn [_ m] m) but optimized a bit."
+  ([flush-interval fiber f] (->eager-last-subscriber flush-interval nil fiber f))
+  ([flush-interval filter-pred fiber f]
+     (when-not (pos? (get-units flush-interval))
+       (throw (IllegalArgumentException. "Just use jreg/->last-subscriber with a zero flush-interval, silly!")))
+     (->EagerReducingSubscriber nil flush-interval filter-pred fiber f (atom eager-last-subscriber-initial-state))))
 
 (defn ->keyed-batch-reducing-subscriber
   ([key-resolver reduce-fn flush-interval fiber f]
