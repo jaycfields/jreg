@@ -95,6 +95,8 @@
   ([reduce-fn flush-interval fiber f]
      (->eager-reducing-subscriber reduce-fn flush-interval nil fiber f))
   ([reduce-fn flush-interval filter-pred fiber f]
+     (when-not (pos? (get-units flush-interval))
+       (throw (IllegalArgumentException. "flush-interval must be positive")))
      (->EagerReducingSubscriber reduce-fn flush-interval filter-pred fiber f (atom eager-initial-state))))
 
 (defn ->keyed-batch-reducing-subscriber
