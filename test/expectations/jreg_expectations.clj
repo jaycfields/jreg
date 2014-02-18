@@ -24,10 +24,16 @@
 
 (set! *warn-on-reflection* false) ; because type-hints on interaction aren't working.
 
+(expect (more-> true (verify (.dispose)))
+  (doto (mock Disposable)
+    (dispose)))
+
+(expect (more #(verify % (.dispose)))
+  (doto (mock Disposable)
+    (dispose)))
+
 (comment
-  (expect-let [disposable (mock Disposable)]
-    (interaction (.dispose disposable))
-    (dispose disposable))
+
 
   (given [expected-call jreg-call]
     (expect-let [scheduler (mock Scheduler)]
