@@ -24,21 +24,24 @@
 
 (set! *warn-on-reflection* false) ; because type-hints on interaction aren't working.
 
-(expect (more #(verify % (.dispose)))
+(expect #(verify % (.dispose))
   (doto (mock Disposable)
     (dispose)))
 
-(expect (let [m (mock Disposable)]
-          (dispose m)
-          (verify m (.dispose))))
-
-(expect (doto (mock Disposable)
-          (dispose)
-          (verify (.dispose))))
-
-(expect (more #(verify % (.schedule a-fn1 23 TimeUnit/MILLISECONDS)))
+(expect #(verify % (.schedule a-fn1 23 TimeUnit/MILLISECONDS))
   (doto (mock Scheduler)
     (schedule a-fn1 23)))
+
+(expect true (from-each [[kw enum] {:nanos TimeUnit/NANOSECONDS
+                                 :micros TimeUnit/MICROSECONDS
+                                 :millis TimeUnit/MILLISECONDS
+                                 :secs TimeUnit/SECONDS
+                                 :mins TimeUnit/MINUTES
+                                 :hrs TimeUnit/HOURS
+                                 :days TimeUnit/DAYS}]
+            (let [m (mock Scheduler)]
+              (schedule m a-fn1 (interval 23 kw))
+              (verify m (.schedule a-fn1 23 enum)))))
 
 (comment
 
@@ -47,30 +50,6 @@
     (expect-let [scheduler (mock )]
       (interaction expected-call)
       jreg-call)
-
-    ()
-    (schedule scheduler a-fn 23)
-
-    (.schedule scheduler a-fn 23 TimeUnit/NANOSECONDS)
-    (schedule scheduler a-fn (interval 23 :nanos))
-
-    (.schedule scheduler a-fn 23 TimeUnit/MICROSECONDS)
-    (schedule scheduler a-fn (interval 23 :micros))
-
-    (.schedule scheduler a-fn 23 TimeUnit/MILLISECONDS)
-    (schedule scheduler a-fn (interval 23 :millis))
-
-    (.schedule scheduler a-fn 23 TimeUnit/SECONDS)
-    (schedule scheduler a-fn (interval 23 :secs))
-
-    (.schedule scheduler a-fn 23 TimeUnit/MINUTES)
-    (schedule scheduler a-fn (interval 23 :mins))
-
-    (.schedule scheduler a-fn 23 TimeUnit/HOURS)
-    (schedule scheduler a-fn (interval 23 :hrs))
-
-    (.schedule scheduler a-fn 23 TimeUnit/DAYS)
-    (schedule scheduler a-fn (interval 23 :days))
 
     (.scheduleAtFixedRate scheduler a-fn 5 10 TimeUnit/MILLISECONDS)
     (schedule-at-fixed-rate scheduler a-fn 5 10)
