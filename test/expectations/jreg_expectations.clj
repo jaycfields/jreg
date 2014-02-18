@@ -1,5 +1,3 @@
-(set! *warn-on-reflection* true)
-
 (ns expectations.jreg-expectations
   (:import (java.util.concurrent CountDownLatch TimeUnit)
            (org.jetlang.core Callback Disposable Scheduler SynchronousDisposingExecutor)
@@ -22,8 +20,6 @@
                 (execute (synchronous-disposing-executor) #(reset! a "ran"))
                 @a))
 
-(set! *warn-on-reflection* false) ; because type-hints on interaction aren't working.
-
 (expect #(verify % (.dispose))
   (doto (mock Disposable)
     (dispose)))
@@ -43,28 +39,23 @@
               (schedule m a-fn1 (interval 23 kw))
               (verify m (.schedule a-fn1 23 enum)))))
 
+(expect #(verify % (.scheduleAtFixedRate a-fn1 5 10 TimeUnit/MILLISECONDS))
+  (doto (mock Scheduler)
+    (schedule-at-fixed-rate a-fn1 5 10)))
+
+(expect #(verify % (.scheduleAtFixedRate a-fn1 5 10 TimeUnit/SECONDS))
+  (doto (mock Scheduler)
+    (schedule-at-fixed-rate a-fn1 (interval 5 :secs) (interval 10 :secs))))
+
+(expect #(verify % (.scheduleWithFixedDelay a-fn1 5 10 TimeUnit/MILLISECONDS))
+  (doto (mock Scheduler)
+    (schedule-with-fixed-delay a-fn1 5 10)))
+
+(expect #(verify % (.scheduleWithFixedDelay a-fn1 5 10 TimeUnit/SECONDS))
+  (doto (mock Scheduler)
+    (schedule-with-fixed-delay a-fn1 (interval 5 :secs) (interval 10 :secs))))
+
 (comment
-
-
-  (given [expected-call jreg-call]
-    (expect-let [scheduler (mock )]
-      (interaction expected-call)
-      jreg-call)
-
-    (.scheduleAtFixedRate scheduler a-fn 5 10 TimeUnit/MILLISECONDS)
-    (schedule-at-fixed-rate scheduler a-fn 5 10)
-
-    (.scheduleAtFixedRate scheduler a-fn 5 10 TimeUnit/SECONDS)
-    (schedule-at-fixed-rate scheduler a-fn (interval 5 :secs) (interval 10 :secs))
-
-    (.scheduleWithFixedDelay scheduler a-fn 5 10 TimeUnit/MILLISECONDS)
-    (schedule-with-fixed-delay scheduler a-fn 5 10)
-
-    (.scheduleWithFixedDelay scheduler a-fn 5 10 TimeUnit/SECONDS)
-    (schedule-with-fixed-delay scheduler a-fn (interval 5 :secs) (interval 10 :secs)))
-
-  (set! *warn-on-reflection* true)
-
   (defn core-fns-have-return-type-hints []
     (let [cb (->callback nil)] (.onMessage cb nil))
     (let [f (->filter nil)] (.passes f nil))
