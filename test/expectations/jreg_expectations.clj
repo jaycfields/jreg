@@ -24,23 +24,31 @@
 
 (set! *warn-on-reflection* false) ; because type-hints on interaction aren't working.
 
-(expect (more-> true (verify (.dispose)))
-  (doto (mock Disposable)
-    (dispose)))
-
 (expect (more #(verify % (.dispose)))
   (doto (mock Disposable)
     (dispose)))
+
+(expect (let [m (mock Disposable)]
+          (dispose m)
+          (verify m (.dispose))))
+
+(expect (doto (mock Disposable)
+          (dispose)
+          (verify (.dispose))))
+
+(expect (more #(verify % (.schedule a-fn1 23 TimeUnit/MILLISECONDS)))
+  (doto (mock Scheduler)
+    (schedule a-fn1 23)))
 
 (comment
 
 
   (given [expected-call jreg-call]
-    (expect-let [scheduler (mock Scheduler)]
+    (expect-let [scheduler (mock )]
       (interaction expected-call)
       jreg-call)
 
-    (.schedule scheduler a-fn 23 TimeUnit/MILLISECONDS)
+    ()
     (schedule scheduler a-fn 23)
 
     (.schedule scheduler a-fn 23 TimeUnit/NANOSECONDS)
