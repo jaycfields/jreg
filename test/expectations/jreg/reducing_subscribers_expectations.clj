@@ -94,7 +94,6 @@
       (publish chan {:timestamp 5 :k "quux"})
       (.await barrier 20 ms)))) ; second reduced delivery
 
-;;; this is an example of expecting one call while ignoring another call
 (expect [{:timestamp 2 :k "bar"}]
   (in (side-effects [a-fn1]
         (let [chan (channel)
