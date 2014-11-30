@@ -8,7 +8,7 @@
 (defprotocol SubscriberStateFlush
   (flush-state [s]))
 (defprotocol ReducingSubscriberStateAccept
-  (accept-message [s reduce-fn message]))
+  (accept-message [s reduce-fn init-val message]))
 (defprotocol EagerReducingSubscriberStateAccept
   (eager-accept [s reduce-fn message fiber flush-runnable flush-interval])
   (rollback-from-accept [s]))
@@ -17,12 +17,14 @@
   SubscriberStateFlush
   (flush-state [_] (SimpleReducingSubscriberState. false no-val pending-val))
   ReducingSubscriberStateAccept
-  (accept-message [_ reduce-fn message]
+  (accept-message [_ reduce-fn init-val message]
     (let [flush-was-pending (val? pending-val)]
       (SimpleReducingSubscriberState. flush-was-pending
                                       (if flush-was-pending
                                         (reduce-fn pending-val message)
-                                        message)
+                                        (if init-val
+                                          (reduce-fn init-val message)
+                                          message))
                                       nil))))
 
 (def ^:private simple-initial-state (SimpleReducingSubscriberState. false no-val nil))
@@ -31,7 +33,7 @@
   SubscriberStateFlush
   (flush-state [_] (KeyedBatchReducingSubscriberState. key-resolver false no-val pending-val))
   ReducingSubscriberStateAccept
-  (accept-message [_ reduce-fn message]
+  (accept-message [_ reduce-fn init-val message]
     (let [flush-was-pending (val? pending-val)]
       (KeyedBatchReducingSubscriberState. key-resolver
                                           flush-was-pending
@@ -41,14 +43,18 @@
                                                 (assoc pending-val k
                                                        (if (val? pending-k-val)
                                                          (reduce-fn pending-k-val message)
-                                                         message)))
-                                              {k message}))
+                                                         (if init-val
+                                                           (reduce-fn init-val message)
+                                                           message))))
+                                              {k (if init-val
+                                                   (reduce-fn init-val message)
+                                                   message)}))
                                           nil))))
 
 (defn- keyed-batch-initial-state [key-resolver] (KeyedBatchReducingSubscriberState. key-resolver false no-val nil))
 
 (deftype ReducingSubscriber
-    [reduce-fn flush-interval filter-pred ^Fiber fiber f a]
+    [reduce-fn init-val flush-interval filter-pred ^Fiber fiber f a]
   Runnable
   (run [_]
     (let [state (swap! a flush-state)]
@@ -57,7 +63,7 @@
   (getQueue [_] fiber)
   (onMessage [this message]
     (when (or (nil? filter-pred) (filter-pred message))
-      (let [state (swap! a accept-message reduce-fn message)]
+      (let [state (swap! a accept-message reduce-fn init-val message)]
         (when-not (:flush-was-pending state)
           (if (pos? (get-units flush-interval))
             (schedule fiber this flush-interval)
@@ -137,7 +143,9 @@
   ([reduce-fn flush-interval fiber f]
      (->simple-reducing-subscriber reduce-fn flush-interval nil fiber f))
   ([reduce-fn flush-interval filter-pred fiber f]
-     (->ReducingSubscriber reduce-fn flush-interval filter-pred fiber f (atom simple-initial-state))))
+     (->simple-reducing-subscriber reduce-fn nil flush-interval filter-pred fiber f))
+  ([reduce-fn init-val flush-interval filter-pred fiber f]
+     (->ReducingSubscriber reduce-fn init-val flush-interval filter-pred fiber f (atom simple-initial-state))))
 
 (defn ->eager-reducing-subscriber
   ([reduce-fn flush-interval fiber f]
@@ -160,7 +168,9 @@
   ([key-resolver reduce-fn flush-interval fiber f]
      (->keyed-batch-reducing-subscriber key-resolver reduce-fn flush-interval nil fiber f))
   ([key-resolver reduce-fn flush-interval filter-pred fiber f]
-     (->ReducingSubscriber reduce-fn flush-interval filter-pred fiber f (atom (keyed-batch-initial-state key-resolver)))))
+     (->keyed-batch-reducing-subscriber key-resolver reduce-fn nil flush-interval filter-pred fiber f))
+  ([key-resolver reduce-fn init-val flush-interval filter-pred fiber f]
+     (->ReducingSubscriber reduce-fn init-val flush-interval filter-pred fiber f (atom (keyed-batch-initial-state key-resolver)))))
 
 (defn last-message-with-earliest [k]
   (fn [old-val last-message]

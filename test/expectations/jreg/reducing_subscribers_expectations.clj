@@ -35,6 +35,26 @@
       (publish chan {:timestamp 3 :foo "quux"})
       (.await barrier 10 ms))))
 
+(expect [[{:sum 1}] [{:sum 8}]]
+  (side-effects [a-fn1]
+    (let [chan (channel)
+          fiber (ThreadFiber.)
+          barrier (CyclicBarrier. 2)]
+      (.start fiber)
+      (subscribe chan (->simple-reducing-subscriber (fn [{:keys [sum]} n] {:sum (+ sum n)})
+                                                    {:sum 0}
+                                                    (interval 5 :millis)
+                                                    odd?
+                                                    fiber
+                                                    #(do (a-fn1 %) (.await barrier 5 ms))))
+      (publish chan 1)
+      (publish chan 2) ; ignored because not odd
+      (.await barrier 10 ms)
+      (publish chan 3)
+      (publish chan 4) ; ignored because not odd
+      (publish chan 5) ; summed with 3
+      (.await barrier 10 ms))))
+
 (expect [[{:timestamp 1 :k "foo"}] [{:timestamp 2 :k "bar"}]]
   (side-effects [a-fn1]
     (let [chan (channel)
@@ -179,4 +199,28 @@
       (publish chan {:timestamp 3 :foo "bar" :k "v2"})
       (.await barrier 10 ms)
       (publish chan {:timestamp 4 :foo "quux"})
+      (.await barrier 10 ms))))
+
+(expect [[{"bar" {:sum 1} "baz" {:sum 3}}]
+         [{"bar" {:sum 8}}]]
+  (side-effects [a-fn1]
+    (let [chan (channel)
+          fiber (ThreadFiber.)
+          barrier (CyclicBarrier. 2)]
+      (.start fiber)
+      (subscribe chan (->keyed-batch-reducing-subscriber
+                       :foo
+                       (fn [{:keys [sum]} {:keys [n]}] {:sum (+ sum n)})
+                       {:sum 0}
+                       (interval 5 :millis)
+                       (comp odd? :n)
+                       fiber
+                       #(do (a-fn1 %) (.await barrier 10 ms))))
+      (publish chan {:foo "bar" :n 1})
+      (publish chan {:foo "bar" :n 2})
+      (publish chan {:foo "baz" :n 3})
+      (.await barrier 10 ms)
+      (publish chan {:foo "bar" :n 3})
+      (publish chan {:foo "bar" :n 4})
+      (publish chan {:foo "bar" :n 5})
       (.await barrier 10 ms))))
