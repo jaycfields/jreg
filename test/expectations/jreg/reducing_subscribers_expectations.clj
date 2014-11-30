@@ -113,6 +113,26 @@
                                         ; because timer started on the first message,
                                         ; not the second
 
+(expect [[{:sum 1}] [{:sum 8}]]
+  (side-effects [a-fn1]
+    (let [chan (channel)
+          fiber (ThreadFiber.)
+          barrier (CyclicBarrier. 2)]
+      (.start fiber)
+      (subscribe chan (->eager-reducing-subscriber (fn [{:keys [sum]} n] {:sum (+ sum n)})
+                                                    {:sum 0}
+                                                    (interval 20 :millis)
+                                                    odd?
+                                                    fiber
+                                                    #(do (a-fn1 %) (.await barrier 5 ms))))
+      (publish chan 1)
+      (.await barrier 5 ms)
+      (publish chan 2) ; ignored because not odd
+      (publish chan 3)
+      (publish chan 4) ; ignored because not odd
+      (publish chan 5) ; summed with 3
+      (.await barrier 25 ms))))
+
 (expect [[{:k "foo"}] [{:k "bar"}]]
   (side-effects [a-fn1]
     (let [chan (channel)
