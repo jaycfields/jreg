@@ -8,4 +8,13 @@
                                   [erajure "0.0.4"]
                                   [org.jetlang/jetlang "0.2.10"]]}}
   :plugins [[lein-expectations "0.0.7"]
-            [lein-publishers "1.0.11"]])
+            [lein-publishers "1.0.11"]]
+    :release-tasks [["vcs" "assert-committed"]
+                  ["change" "version" "leiningen.release/bump-version" "release"]
+                  ["vcs" "commit"]
+                  ["vcs" "tag"]
+                  ["deploy"]
+                  ["publish-fig"]
+                  ["change" "version" "leiningen.release/bump-version"]
+                  ["vcs" "commit"]
+                  ["vcs" "push"]])
