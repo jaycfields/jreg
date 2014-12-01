@@ -1,4 +1,4 @@
-(defproject jreg "0.5.2"
+(defproject jreg "0.5.3-SNAPSHOT"
   :description "a Clojure wrapper for Jetlang"
   :jar-name "jreg.jar"
   :source-paths ["src/clojure"]
